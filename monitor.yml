@@ -1,0 +1,37 @@
+name: Veille logement CROUS Lyon
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # toutes les 20 minutes
+  workflow_dispatch: {}       # déclenchement manuel possible
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer la veille
+        env:
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python scraper.py
+
+      - name: Committer l'état mis à jour
+        run: |
+          git config user.name "crous-monitor-bot"
+          git config user.email "actions@github.com"
+          git add seen_listings.json debug_last_page.html
+          git diff --quiet --cached || git commit -m "Mise à jour état [skip ci]"
+          git push
